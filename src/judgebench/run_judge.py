@@ -4,7 +4,7 @@ import asyncio
 import json
 import os
 import random
-
+from datasets import load_dataset
 from tqdm.asyncio import tqdm_asyncio
 
 import judgebench.utils.file_operations as file_operations
@@ -86,18 +86,40 @@ def cli_main() -> None:
         "--concurrency_limit", type=int, default=1
     )  # We use asyncio to speed things up, 10 is usally a good value here.
     parser.add_argument(
-        "--pairs", type=str, required=True
+        "--pairs", type=str, required=False
     )  # path to jsonl containing pairs for judging
+    parser.add_argument(
+        "--hf_split", type=str, default=None
+    )  # split name for HF dataset
+    parser.add_argument(
+        "--hf_config", type=str, default=None
+    ) # config for ScalerLab/JudgeBench
     args = parser.parse_args()
+    if not args.pairs and not args.hf_split:
+        parser.error(
+            "Provide either --pairs for a local JSONL file or -hf_split to pull from Hugging Face"
+        )
     main(args)
 
 
 def main(args: argparse.Namespace) -> None:
     random.seed(args.seed)
 
-    pairs = file_operations.read_jsonl(args.pairs)
+    # pairs = file_operations.read_jsonl(args.pairs)
 
-    dataset_name = os.path.basename(args.pairs).replace(".jsonl", "")
+    # dataset_name = os.path.basename(args.pairs).replace(".jsonl", "")
+    if args.hf_split:
+        dataset_kwargs = {"split": args.hf_split}
+        if args.hf_config:
+            dataset_kwargs["name"] = args.hf_config
+        dataset = load_dataset("ScalerLab/JudgeBench", **dataset_kwargs)
+        pairs = dataset.to_list()
+        hf_cfg = (args.hf_config or "default").replace("/","_")
+        hf_split = args.hf_split.replace("/","_")
+        dataset_name = f"huggingface-ScalerLab-JudgeBench,{hf_cfg},{hf_split}"
+    else:
+        pairs = file_operations.read_jsonl(args.pairs)
+        dataset_name = os.path.basename(args.pairs).replace(".jsonl", "")
     file_path = f"{dataset_name},judge_name={args.judge_name},judge_model={args.judge_model.replace('/', '_')}.jsonl"
     os.makedirs("./outputs", exist_ok=True)
     file_path = os.path.join("./outputs", file_path)
