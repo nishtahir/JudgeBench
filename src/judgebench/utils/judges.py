@@ -1,9 +1,9 @@
-from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, Tuple, Union
 import re
+from abc import ABC, abstractmethod
+from typing import Any, Dict, Optional, Tuple, Union
 
-import judgebench.utils.prompts as prompts
 import judgebench.utils.models as models
+import judgebench.utils.prompts as prompts
 
 # run judge on pairs
 # judges should take a question and two responses, and return a decision (e.g., A>B or B>A)
@@ -14,9 +14,7 @@ import judgebench.utils.models as models
 
 class Judge(ABC):
     @abstractmethod
-    async def get_judgment(
-        self, question: str, answer_A: str, answer_B: str
-    ) -> Dict[str, Any]:
+    async def get_judgment(self, question: str, answer_A: str, answer_B: str) -> Dict[str, Any]:
         pass
 
 
@@ -29,9 +27,7 @@ class ArenaHard(Judge):
         self.api = models.get_chat_api_from_model(model_name)
         self.number_of_judgment_attempts = 2
 
-    async def get_judgment(
-        self, question: str, answer_A: str, answer_B: str
-    ) -> Dict[str, Any]:
+    async def get_judgment(self, question: str, answer_A: str, answer_B: str) -> Dict[str, Any]:
         system_message = prompts.render_template("arena_hard_judge_system")
         user_message = prompts.render_template(
             "arena_hard_judge_prompt",
@@ -51,9 +47,7 @@ class ArenaHard(Judge):
                 max_tokens=4096,
             )
             judgment += "\n" + new_judgment
-            score, try_again = self.get_score(
-                judgment, re.compile("\[\[([AB<>=]+)\]\]")
-            )
+            score, try_again = self.get_score(judgment, re.compile("\[\[([AB<>=]+)\]\]"))
             messages.append({"role": "assistant", "content": new_judgment})
             if not try_again:
                 break
@@ -100,9 +94,7 @@ class Vanilla(Judge):
             return "B>A"
         raise Exception("Cannot parse output:", raw_output)
 
-    async def get_judgment(
-        self, question: str, answer_A: str, answer_B: str
-    ) -> Dict[str, Any]:
+    async def get_judgment(self, question: str, answer_A: str, answer_B: str) -> Dict[str, Any]:
         prompt = prompts.render_template(
             "vanilla_prompt", question=question, answer_a=answer_A, answer_b=answer_B
         )
@@ -155,8 +147,8 @@ class PandaLM(Judge):
             self.tokenizer(template_with_question).input_ids
         )  # includes special BOS token <s>
         tokens_per_response = (
-            (context_limit - max_new_tokens - len_template) // 2 - 2
-        )  # each response should be truncated to a length of tokens_per_response
+            context_limit - max_new_tokens - len_template
+        ) // 2 - 2  # each response should be truncated to a length of tokens_per_response
 
         answer_A_tokenized = self.tokenizer(
             answer_A,
@@ -212,9 +204,7 @@ class PandaLM(Judge):
         self.pattern.sub("", text.strip()).strip()
         return text
 
-    async def get_judgment(
-        self, question: str, answer_A: str, answer_B: str
-    ) -> Dict[str, Any]:
+    async def get_judgment(self, question: str, answer_A: str, answer_B: str) -> Dict[str, Any]:
         answer_A, answer_B = self.truncate_responses(
             question,
             answer_A,
@@ -288,8 +278,8 @@ class JudgeLM(Judge):
             self.tokenizer(template_with_question).input_ids
         )  # includes special BOS token <s>
         tokens_per_response = (
-            (context_limit - max_new_tokens - len_template) // 2 - 2
-        )  # each response should be truncated to a length of tokens_per_response
+            context_limit - max_new_tokens - len_template
+        ) // 2 - 2  # each response should be truncated to a length of tokens_per_response
 
         answer_A_tokenized = self.tokenizer(
             answer_A,
@@ -335,9 +325,7 @@ class JudgeLM(Judge):
         except Exception:
             return [-1, -1]
 
-    async def get_judgment(
-        self, question: str, answer_A: str, answer_B: str
-    ) -> Dict[str, Any]:
+    async def get_judgment(self, question: str, answer_A: str, answer_B: str) -> Dict[str, Any]:
         answer_A, answer_B = self.truncate_responses(
             question,
             answer_A,
@@ -395,9 +383,7 @@ class AutoJ(Judge):
                 pred_label = "A=B"
         return pred_label
 
-    async def get_judgment(
-        self, question: str, answer_A: str, answer_B: str
-    ) -> Dict[str, Any]:
+    async def get_judgment(self, question: str, answer_A: str, answer_B: str) -> Dict[str, Any]:
         prompt = prompts.render_template(
             "autoj_prompt",
             question=question,
@@ -446,9 +432,7 @@ class Prometheus2(Judge):
             (A|B)                               # Capture A or B
             (?:\]|\s|$)                         # Allow closing bracket, whitespace, or end of string
         """
-        match = re.search(
-            explicit_pattern, output, re.IGNORECASE | re.VERBOSE | re.MULTILINE
-        )
+        match = re.search(explicit_pattern, output, re.IGNORECASE | re.VERBOSE | re.MULTILINE)
 
         if match:
             result = match.group(1).upper()
@@ -457,9 +441,7 @@ class Prometheus2(Judge):
 
         return None, None
 
-    async def get_judgment(
-        self, question: str, answer_A: str, answer_B: str
-    ) -> Dict[str, Any]:
+    async def get_judgment(self, question: str, answer_A: str, answer_B: str) -> Dict[str, Any]:
         prompt = prompts.render_template(
             "prometheus2_prompt",
             instruction=question,
@@ -502,9 +484,7 @@ class SkyworkCritic(Judge):
         self.model_name = model_name
         self.api = models.get_chat_api_from_model(model_name)
 
-    async def get_judgment(
-        self, question: str, answer_A: str, answer_B: str
-    ) -> Dict[str, Any]:
+    async def get_judgment(self, question: str, answer_A: str, answer_B: str) -> Dict[str, Any]:
         prompt = prompts.render_template(
             "skywork_critic_prompt",
             input=question,
@@ -549,13 +529,9 @@ class InternLM2Reward(Judge):
             torch_dtype=torch.float16,
             trust_remote_code=True,
         ).to(self.device)
-        self.rm_tokenizer = AutoTokenizer.from_pretrained(
-            model_name, trust_remote_code=True
-        )
+        self.rm_tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
 
-    async def get_judgment(
-        self, question: str, answer_A: str, answer_B: str
-    ) -> Dict[str, Any]:
+    async def get_judgment(self, question: str, answer_A: str, answer_B: str) -> Dict[str, Any]:
         conv1 = [
             {"role": "user", "content": question},
             {"role": "assistant", "content": answer_A},
@@ -577,11 +553,9 @@ class InternLM2Reward(Judge):
 
 
 class GRMReward(Judge):
-    def __init__(
-        self, model_name="Ray2333/GRM-Gemma-2B-rewardmodel-ft", device="cuda:0"
-    ):
+    def __init__(self, model_name="Ray2333/GRM-Gemma-2B-rewardmodel-ft", device="cuda:0"):
         import torch
-        from transformers import AutoTokenizer, AutoModelForSequenceClassification
+        from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
         self.model_name = model_name
         self.device = device
@@ -608,9 +582,7 @@ class GRMReward(Judge):
 
         return reward
 
-    async def get_judgment(
-        self, question: str, answer_A: str, answer_B: str
-    ) -> Dict[str, Any]:
+    async def get_judgment(self, question: str, answer_A: str, answer_B: str) -> Dict[str, Any]:
         message_A = [
             {"role": "user", "content": question},
             {"role": "assistant", "content": answer_A},
@@ -634,7 +606,7 @@ class GRMReward(Judge):
 class SkyworkReward(Judge):
     def __init__(self, model_name, device="cuda:0"):
         import torch
-        from transformers import AutoTokenizer, AutoModelForSequenceClassification
+        from transformers import AutoModelForSequenceClassification, AutoTokenizer
 
         self.model_name = model_name
         self.device = device
@@ -645,9 +617,7 @@ class SkyworkReward(Judge):
         ).to(self.device)
         self.rm_tokenizer = AutoTokenizer.from_pretrained(model_name)
 
-    async def get_judgment(
-        self, question: str, answer_A: str, answer_B: str
-    ) -> Dict[str, Any]:
+    async def get_judgment(self, question: str, answer_A: str, answer_B: str) -> Dict[str, Any]:
         import torch
 
         conv1 = [
@@ -661,12 +631,8 @@ class SkyworkReward(Judge):
 
         conv1_formatted = self.rm_tokenizer.apply_chat_template(conv1, tokenize=False)
         conv2_formatted = self.rm_tokenizer.apply_chat_template(conv2, tokenize=False)
-        conv1_tokenized = self.rm_tokenizer(conv1_formatted, return_tensors="pt").to(
-            self.device
-        )
-        conv2_tokenized = self.rm_tokenizer(conv2_formatted, return_tensors="pt").to(
-            self.device
-        )
+        conv1_tokenized = self.rm_tokenizer(conv1_formatted, return_tensors="pt").to(self.device)
+        conv2_tokenized = self.rm_tokenizer(conv2_formatted, return_tensors="pt").to(self.device)
 
         # Get the reward scores
         with torch.no_grad():
@@ -700,9 +666,7 @@ class CompassJudger(Judge):
         else:
             return None, False
 
-    async def get_judgment(
-        self, question: str, answer_A: str, answer_B: str
-    ) -> Dict[str, Any]:
+    async def get_judgment(self, question: str, answer_A: str, answer_B: str) -> Dict[str, Any]:
         system_message = prompts.render_template("arena_hard_judge_system")
         user_message = prompts.render_template(
             "arena_hard_judge_prompt",
