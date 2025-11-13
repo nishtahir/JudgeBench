@@ -5,17 +5,16 @@
 # Only asyncronous apis are supported
 # Non-asnyc requests can be handled, but chat() should still be async, so include something like await asyncio.sleep(0)
 
-from abc import ABC, abstractmethod
-from typing import List, Dict
 import os
+from abc import ABC, abstractmethod
+from typing import Dict, List
 
+import anthropic
 import backoff
 import openai
-import anthropic
 
 
 class ChatAPI(ABC):
-
     @abstractmethod
     def __init__(self, model):
         pass
@@ -26,30 +25,27 @@ class ChatAPI(ABC):
 
 
 class OpenAIAPI(ChatAPI):
-
     def __init__(self, model: str):
         self.model = model
-        self.client = openai.AsyncClient(
-            api_key=os.environ.get("OPENAI_API_KEY"))
+        self.client = openai.AsyncClient(api_key=os.environ.get("OPENAI_API_KEY"))
 
     @backoff.on_exception(backoff.fibo, (openai.OpenAIError), max_tries=5, max_value=30)
     async def chat(self, messages: List[Dict[str, str]], **kwargs) -> str:
-        
         if self.model.startswith("o1"):
             if messages[0]["role"] == "system":
                 system_message = messages.pop(0)["content"]
                 user_message = messages[0]["content"]
                 messages[0] = {
                     "role": "user",
-                    "content": f"<|BEGIN_SYSTEM_MESSAGE|>\n{system_message.strip()}\n<|END_SYSTEM_MESSAGE|>\n\n{user_message}"
+                    "content": f"<|BEGIN_SYSTEM_MESSAGE|>\n{system_message.strip()}\n<|END_SYSTEM_MESSAGE|>\n\n{user_message}",
                 }
 
             response = await self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,
             )
-        
-        else:   
+
+        else:
             response = await self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,
@@ -59,15 +55,12 @@ class OpenAIAPI(ChatAPI):
 
 
 class AnthropicAPI(ChatAPI):
-
     def __init__(self, model: str):
         self.model = model
-        self.client = anthropic.AsyncClient(
-            api_key=os.environ.get("ANTHROPIC_API_KEY"))
+        self.client = anthropic.AsyncClient(api_key=os.environ.get("ANTHROPIC_API_KEY"))
 
     @backoff.on_exception(backoff.fibo, anthropic.AnthropicError, max_tries=5, max_value=30)
     async def chat(self, messages: List[Dict[str, str]], **kwargs) -> str:
-        
         if messages[0]["role"] == "system":
             system_message = messages[0]["content"]
             messages = messages[1:]
@@ -81,15 +74,16 @@ class AnthropicAPI(ChatAPI):
             # max_tokens=8192, # 4096 for claude-3-*
             **kwargs,
         )
-        
+
         return response.content[0].text
 
 
 class GeminiAPI(OpenAIAPI):
     """Google Gemini API.
-    
+
     Models include gemini-1.5-pro-001 etc.
     """
+
     def __init__(self, model: str):
         import google.auth
         import google.auth.transport.requests
@@ -124,12 +118,10 @@ class GeminiAPI(OpenAIAPI):
 
 
 class TogetherAPI(ChatAPI):
-
     def __init__(self, model: str):
         self.model = model
         self.client = openai.AsyncClient(
-            api_key=os.environ.get("TOGETHER_API_KEY"),
-            base_url="https://api.together.xyz/v1"
+            api_key=os.environ.get("TOGETHER_API_KEY"), base_url="https://api.together.xyz/v1"
         )
 
     @backoff.on_exception(backoff.fibo, (openai.OpenAIError), max_tries=5, max_value=30)
@@ -140,10 +132,9 @@ class TogetherAPI(ChatAPI):
             **kwargs,
         )
         return response.choices[0].message.content
-    
+
 
 class LocalAPI(ChatAPI):
-
     def __init__(self, model: str):
         self.model = model
         self.client = openai.AsyncClient(base_url="http://localhost:8000/v1", api_key="EMPTY")
@@ -156,7 +147,7 @@ class LocalAPI(ChatAPI):
             **kwargs,
         )
         return response.choices[0].message.content
-    
+
     @backoff.on_exception(backoff.fibo, (openai.OpenAIError), max_tries=5, max_value=30)
     async def complete(self, prompt: str, **kwargs) -> str:
         response = await self.client.completions.create(

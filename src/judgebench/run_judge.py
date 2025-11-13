@@ -1,16 +1,17 @@
-from typing import List, Dict, Any
 import argparse
 import asyncio
 import json
 import os
 import random
+from typing import Any, Dict, List
+
 from datasets import load_dataset
+from dotenv import load_dotenv
 from tqdm.asyncio import tqdm_asyncio
 
 import judgebench.utils.file_operations as file_operations
 import judgebench.utils.judges as judges
 import judgebench.utils.metrics as metrics
-from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -19,9 +20,9 @@ async def judge_pairs(
     pairs: List[Dict[str, Any]],
     judge_name: str,
     judge_model: str,
+    output_file: str,
     concurrency_limit: int = 1,
     reverse_order: int = False,
-    output_file: str = None,
 ):
     semaphore = asyncio.Semaphore(concurrency_limit)
     judge = judges.get_judge_from_judge_name_and_model(judge_name, judge_model)
@@ -36,17 +37,13 @@ async def judge_pairs(
             try:
                 judgment_1 = await judge.get_judgment(question, response_A, response_B)
             except Exception as e:
-                print(
-                    f"Failed to judge pair {pair['pair_id']} due to the following error: {e}."
-                )
+                print(f"Failed to judge pair {pair['pair_id']} due to the following error: {e}.")
                 judgment_1 = None
             judgments = [judgment_1]
 
             if reverse_order:
                 try:
-                    judgment_2 = await judge.get_judgment(
-                        question, response_B, response_A
-                    )
+                    judgment_2 = await judge.get_judgment(question, response_B, response_A)
                 except Exception as e:
                     print(
                         f"Failed to judge pair {pair['pair_id']} due to the following error: {e}."
@@ -78,9 +75,7 @@ def cli_main() -> None:
         required=True,
         help="Name of judge, should correspond to an entry in utils/judges/get_judge_from_judge_name_and_model.",
     )
-    parser.add_argument(
-        "--judge_model", type=str, required=True, help="Model to be used by judge."
-    )
+    parser.add_argument("--judge_model", type=str, required=True, help="Model to be used by judge.")
     parser.add_argument(
         "--single_game",
         action="store_true",
@@ -104,9 +99,7 @@ def cli_main() -> None:
         required=False,
         help="Path to jsonl containing pairs for judging.",
     )
-    parser.add_argument(
-        "--hf_split", type=str, default=None, help="Split name for HF dataset"
-    )
+    parser.add_argument("--hf_split", type=str, default=None, help="Split name for HF dataset")
     parser.add_argument(
         "--hf_dataset",
         type=str,
@@ -125,7 +118,7 @@ def main(args: argparse.Namespace) -> None:
     random.seed(args.seed)
     if args.hf_dataset:
         dataset = load_dataset(args.hf_dataset, **{"split": args.hf_split})
-        pairs = dataset.to_list()
+        pairs = dataset.to_list()  # type: ignore
         hf_dataset = args.hf_dataset.replace("/", "_")
         hf_split = args.hf_split.replace("/", "_")
         dataset_name = f"huggingface-{hf_dataset},{hf_split}"

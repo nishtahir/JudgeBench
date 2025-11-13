@@ -168,3 +168,4 @@ cython_debug/
 # Misc
 .env
 outputs/
+.ruff_cache/

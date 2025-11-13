@@ -1,41 +1,68 @@
 [project]
-name = "judgebench"
-version = "0.1.0"
-description = "Add your description here"
-readme = "README.md"
 authors = [
-    { name = "Sijun Tan", email = "sijuntan@berkeley.edu" },
-    { name = "Siyuan Zhuang", email = "siyuan_zhuang@berkeley.edu" },
-    { name = "Kyle Montgomery", email = "kylemontgomery@wustl.edu" },
-    { name = "Willian Y. Tang", email = "" },
-    { name = "Alejandro Cuadron", email = "" },
-    { name = "Chenguang Wang", email = "" },
-    { name = "Raluca Ada Popa", email = "" },
-    { name = "Ion Stoica", email = "" },
-
-    # Unaffiliated. Contribution to the fork
-    { name = "Nish Tahir", email = "nishtahir@outlook.com" }
+  {email = "kylemontgomery@wustl.edu", name = "Kyle Montgomery"},
+  # Unaffiliated. Contribution to the fork
+  {email = "nishtahir@outlook.com", name = "Nish Tahir"},
+  {email = "sijuntan@berkeley.edu", name = "Sijun Tan"},
+  {email = "siyuan_zhuang@berkeley.edu", name = "Siyuan Zhuang"},
+  {name = "Alejandro Cuadron"},
+  {name = "Chenguang Wang"},
+  {name = "Ion Stoica"},
+  {name = "Raluca Ada Popa"},
+  {name = "Willian Y. Tang"},
 ]
-requires-python = ">=3.12"
 dependencies = [
-    "anthropic>=0.72.1",
-    "backoff>=2.2.1",
-    "datasets>=4.4.1",
-    "google-auth>=2.43.0",
-    "jinja2>=3.1.6",
-    "openai>=2.7.2",
-    "pydantic>=2.12.4",
-    "python-dotenv>=1.2.1",
-    "pyyaml>=6.0.3",
-    "requests>=2.32.5",
-    "sentencepiece>=0.2.1",
-    "tqdm>=4.67.1",
-    "transformers>=4.57.1",
+  "anthropic>=0.72.1",
+  "backoff>=2.2.1",
+  "datasets>=4.4.1",
+  "google-auth>=2.43.0",
+  "jinja2>=3.1.6",
+  "openai>=2.7.2",
+  "pydantic>=2.12.4",
+  "python-dotenv>=1.2.1",
+  "pyyaml>=6.0.3",
+  "requests>=2.32.5",
+  "sentencepiece>=0.2.1",
+  "tqdm>=4.67.1",
+  "transformers>=4.57.1",
 ]
+description = "Add your description here"
+name = "judgebench"
+readme = "README.md"
+requires-python = ">=3.12"
+version = "0.1.0"
 
 [project.scripts]
 judgebench = "judgebench.run_judge:cli_main"
 
 [build-system]
-requires = ["uv_build>=0.8.13,<0.9.0"]
 build-backend = "uv_build"
+requires = ["uv_build>=0.8.13,<0.9.0"]
+
+[dependency-groups]
+dev = [
+  "pyrefly>=0.41.2",
+  "ruff>=0.14.4",
+  "toml-sort>=0.24.3",
+]
+
+[tool.pyrefly]
+project-includes = [
+  "**/*.ipynb",
+  "**/*.py*",
+]
+
+[tool.ruff]
+exclude = [".venv", "typings", "vendor"]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.format]
+exclude = ["*.pyi"]
+skip-magic-trailing-comma = false
+
+[tool.tomlsort]
+all = true
+in_place = true
+sort_first = ["project"]
+trailing_comma_inline_array = true
