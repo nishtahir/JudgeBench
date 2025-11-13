@@ -73,53 +73,68 @@ async def judge_pairs(
 def cli_main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "--judge_name", type=str, required=True
-    )  # name of judge, should correspond to an entry in utils/judges/get_judge_from_judge_name_and_model.
+        "--judge_name",
+        type=str,
+        required=True,
+        help="Name of judge, should correspond to an entry in utils/judges/get_judge_from_judge_name_and_model.",
+    )
     parser.add_argument(
-        "--judge_model", type=str, required=True
-    )  # model to be used by judge.
+        "--judge_model", type=str, required=True, help="Model to be used by judge."
+    )
     parser.add_argument(
-        "--single_game", action="store_true"
-    )  # by default, we run each pair through twice (A,B) and (B,A). This flag will only run the original ordering, and should be used if a judge is order-independent.
-    parser.add_argument("--seed", type=int, default=42)  # seed to use.
+        "--single_game",
+        action="store_true",
+        # by default, we run each pair through twice (A,B) and (B,A). This flag will only run the original ordering, and should be used if a judge is order-independent.
+    )
     parser.add_argument(
-        "--concurrency_limit", type=int, default=1
-    )  # We use asyncio to speed things up, 10 is usally a good value here.
+        "--seed",
+        type=int,
+        default=42,
+        help="Seed to use.",
+    )
     parser.add_argument(
-        "--pairs", type=str, required=False
-    )  # path to jsonl containing pairs for judging
+        "--concurrency_limit",
+        type=int,
+        default=1,
+        help="We use asyncio to speed things up, 10 is usally a good value here.",
+    )
     parser.add_argument(
-        "--hf_split", type=str, default=None
-    )  # split name for HF dataset
+        "--pairs",
+        type=str,
+        required=False,
+        help="Path to jsonl containing pairs for judging.",
+    )
     parser.add_argument(
-        "--hf_config", type=str, default=None
-    ) # config for ScalerLab/JudgeBench
+        "--hf_split", type=str, default=None, help="Split name for HF dataset"
+    )
+    parser.add_argument(
+        "--hf_dataset",
+        type=str,
+        default="ScalerLab/JudgeBench",
+        help="Hugging Face dataset path to load.",
+    )
     args = parser.parse_args()
     if not args.pairs and not args.hf_split:
         parser.error(
-            "Provide either --pairs for a local JSONL file or -hf_split to pull from Hugging Face"
+            "Provide either --pairs for a local JSONL file or -hf_split to pull from Hugging Face."
         )
     main(args)
 
 
 def main(args: argparse.Namespace) -> None:
     random.seed(args.seed)
-
-    # pairs = file_operations.read_jsonl(args.pairs)
-
-    # dataset_name = os.path.basename(args.pairs).replace(".jsonl", "")
-    if args.hf_split:
-        dataset_kwargs = {"split": args.hf_split}
-        if args.hf_config:
-            dataset_kwargs["name"] = args.hf_config
-        dataset = load_dataset("ScalerLab/JudgeBench", **dataset_kwargs)
+    if args.hf_dataset:
+        dataset = load_dataset(args.hf_dataset, **{"split": args.hf_split})
         pairs = dataset.to_list()
-        hf_cfg = (args.hf_config or "default").replace("/","_")
-        hf_split = args.hf_split.replace("/","_")
-        dataset_name = f"huggingface-ScalerLab-JudgeBench,{hf_cfg},{hf_split}"
+        hf_dataset = args.hf_dataset.replace("/", "_")
+        hf_split = args.hf_split.replace("/", "_")
+        dataset_name = f"huggingface-{hf_dataset},{hf_split}"
     else:
         pairs = file_operations.read_jsonl(args.pairs)
         dataset_name = os.path.basename(args.pairs).replace(".jsonl", "")
+
+    dataset_name = dataset_name.replace("/", "_")
+
     file_path = f"{dataset_name},judge_name={args.judge_name},judge_model={args.judge_model.replace('/', '_')}.jsonl"
     os.makedirs("./outputs", exist_ok=True)
     file_path = os.path.join("./outputs", file_path)
